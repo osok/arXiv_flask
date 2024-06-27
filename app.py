@@ -4,8 +4,7 @@ from openai import OpenAI
 from pinecone import Pinecone
 from flask import send_from_directory
 import markdown
-
-
+import requests
 
 
 # Retrieve API keys from environment variables
@@ -29,18 +28,39 @@ paper_dir = "/ai/fabric/output/arvix_papers/"
 app = Flask(__name__)
 
 
+
+@app.errorhandler(400)
+def bad_request(e):
+    return render_template('400.html'), 400
+
+@app.errorhandler(401)
+def unauthorized(e):
+    return render_template('401.html'), 401
+
+@app.errorhandler(404)
+def not_found(e):
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    return render_template('500.html'), 500
+
+
+
 @app.route('/view_paper/<title>')
 def view_paper(title):
-    # Construct the full file path
-    full_path = os.path.realpath(os.path.join(paper_dir, title))
+    # Construct the URL of the markdown file
+    url = f"https://raw.githubusercontent.com/osok/arXiv_papers/main/{title}"
 
-    # Check if the file is in the paper_dir directory
-    if os.path.commonprefix([full_path, os.path.realpath(paper_dir)]) != os.path.realpath(paper_dir):
-        abort(403, "Access denied")
+    # Send a GET request to the URL
+    response = requests.get(url)
 
-    # Read the markdown file
-    with open(full_path, 'r') as f:
-        content = f.read()
+    # Check if the request was successful
+    if response.status_code != 200:
+        abort(404, "File not found")
+
+    # Get the content of the file
+    content = response.text
 
     # Convert the markdown to HTML
     html_content = markdown.markdown(content)
