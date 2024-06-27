@@ -1,7 +1,12 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, render_template_string, abort
 from openai import OpenAI
 from pinecone import Pinecone
+from flask import send_from_directory
+import markdown
+
+
+
 
 # Retrieve API keys from environment variables
 pinecone_api_key = os.getenv('PINECONE_API_KEY')
@@ -19,7 +24,30 @@ if index_name not in pc.list_indexes().names():
 
 pc_index = pc.Index(index_name)
 
+paper_dir = "/ai/fabric/output/arvix_papers/"
+
 app = Flask(__name__)
+
+
+@app.route('/view_paper/<title>')
+def view_paper(title):
+    # Construct the full file path
+    full_path = os.path.realpath(os.path.join(paper_dir, title))
+
+    # Check if the file is in the paper_dir directory
+    if os.path.commonprefix([full_path, os.path.realpath(paper_dir)]) != os.path.realpath(paper_dir):
+        abort(403, "Access denied")
+
+    # Read the markdown file
+    with open(full_path, 'r') as f:
+        content = f.read()
+
+    # Convert the markdown to HTML
+    html_content = markdown.markdown(content)
+
+    # Render the HTML
+    return render_template_string(html_content)
+
 
 def get_embedding(text, model="nomic-ai/nomic-embed-text-v1.5-GGUF"):
     text = text.replace("\n", " ")
@@ -56,7 +84,7 @@ def search():
     show_summaries = request.args.get('show_summaries') == 'True'
 
     filenames_summaries = search_terms(terms)
-    page_size = 5
+    page_size = 20
     total_files = len(filenames_summaries)
     total_pages = (total_files + page_size - 1) // page_size
     start_idx = (page - 1) * page_size

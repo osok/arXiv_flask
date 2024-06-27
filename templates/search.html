@@ -11,8 +11,8 @@
       <ul>
         {% for filename, summary in filenames_summaries %}
           <li>
-            {{ filename }}
-            {% if show_summaries and summary %}
+    <h2><a href="{{ url_for('view_paper', title=filename) }}">{{ filename }}</a></h2>
+          {% if show_summaries and summary %}
               <p style="margin-left: 20px;">{{ summary }}</p>
             {% endif %}
           </li>
