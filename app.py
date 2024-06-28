@@ -5,6 +5,15 @@ from pinecone import Pinecone
 from flask import send_from_directory
 import markdown
 import requests
+from datetime import datetime
+import re
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.template_filter('safe_name')
+def safe_name_filter(s):
+    return re.sub(r'\W+', '_', s)
 
 
 # Retrieve API keys from environment variables
@@ -24,8 +33,6 @@ if index_name not in pc.list_indexes().names():
 pc_index = pc.Index(index_name)
 
 paper_dir = "/ai/fabric/output/arvix_papers/"
-
-app = Flask(__name__)
 
 
 
@@ -47,10 +54,14 @@ def server_error(e):
 
 
 
+
 @app.route('/view_paper/<title>')
 def view_paper(title):
+    # Generate a safe name from the title
+    safe_name = re.sub(r'\W+', '_', title) + '.md'
+
     # Construct the URL of the markdown file
-    url = f"https://raw.githubusercontent.com/osok/arXiv_papers/main/{title}"
+    url = f"https://raw.githubusercontent.com/osok/arXiv_papers/main/{safe_name}"
 
     # Send a GET request to the URL
     response = requests.get(url)
@@ -74,6 +85,8 @@ def get_embedding(text, model="nomic-ai/nomic-embed-text-v1.5-GGUF"):
     response = client.embeddings.create(input=[text], model=model)
     return response.data[0].embedding
 
+
+
 def search_terms(terms):
     embedding = get_embedding(terms)
     query_response = pc_index.query(
@@ -83,10 +96,19 @@ def search_terms(terms):
         include_metadata=True
     )
     filenames_summaries = [
-        (match['metadata']['file_name'], match['metadata'].get('summary', ''))
+        {
+            'file_name': match['metadata']['file_name'],
+            'summary': match['metadata'].get('summary', ''),
+            'title': match['metadata'].get('title', ''),
+            'short_url': match['metadata'].get('short_url', ''),
+            'views': match['metadata'].get('views', ''),
+            'likes': match['metadata'].get('likes', ''),
+            'video_date': datetime.strptime(match['metadata'].get('video_date', ''), '%Y-%m-%dT%H:%M:%SZ') if match['metadata'].get('video_date') else ''  # Convert video_date to datetime
+        }
         for match in query_response['matches']
     ]
     return filenames_summaries
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
