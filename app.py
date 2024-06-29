@@ -8,7 +8,8 @@ import requests
 from datetime import datetime
 import re
 from flask import Flask
-
+from transformers import AutoTokenizer, AutoModel
+import torch
 
 
 app = Flask(__name__)
@@ -82,17 +83,38 @@ def view_paper(title):
     return render_template_string(html_content)
 
 
-def get_embedding(text, model="nomic-ai/nomic-embed-text-v1.5-GGUF"):
-    text = text.replace("\n", " ")
-    response = client.embeddings.create(input=[text], model=model)
-    return response.data[0].embedding
 
+# Specify the model name
+model_dir = os.getenv('EMBEDDING_DIR')
+if model_dir is None:
+    raise ValueError("Please set the EMBEDDING_DIR environment variable to the path of the model directory.")
+
+# Load the model and the tokenizer
+tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
+model = AutoModel.from_pretrained(model_dir, trust_remote_code=True)
+
+def get_embedding(text):
+    # Tokenize the text
+    inputs = tokenizer(text, return_tensors='pt', truncation=True, padding=True)
+
+    # Get the embeddings
+    with torch.no_grad():
+        outputs = model(**inputs)
+
+    # The embeddings are the last hidden states
+    embeddings = outputs.last_hidden_state
+
+    # Average the embeddings over the sequence dimension to get a single vector
+    embedding = embeddings.mean(dim=1)
+
+    return embedding.numpy()
 
 
 def search_terms(terms):
     embedding = get_embedding(terms)
+    embedding_list = embedding.tolist()  # Convert the numpy array to a list
     query_response = pc_index.query(
-        vector=embedding,
+        vector=embedding_list,  # Pass the list to the query method
         top_k=100,
         include_values=True,
         include_metadata=True
@@ -110,7 +132,6 @@ def search_terms(terms):
         for match in query_response['matches']
     ]
     return filenames_summaries
-
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
