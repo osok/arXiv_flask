@@ -20,8 +20,8 @@
       <span>Date: {{ item.video_date.strftime('%B, %d %Y') }}</span>
     </p>
     {% if show_summaries and item.summary %}
-    {% endif %}
       <p style="margin-left: 20px;">{{ item.summary }}</p>
+    {% endif %}
   </li>
 {% endfor %}
 

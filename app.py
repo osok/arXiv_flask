@@ -1,13 +1,15 @@
+import argparse
 import os
 from flask import Flask, render_template, request, redirect, url_for, render_template_string, abort
 from openai import OpenAI
 from pinecone import Pinecone
-from flask import send_from_directory
 import markdown
 import requests
 from datetime import datetime
 import re
 from flask import Flask
+
+
 
 app = Flask(__name__)
 
@@ -117,7 +119,9 @@ def index():
         show_summaries = 'show_summaries' in request.form
         if terms:
             return redirect(url_for('search', terms=terms, page=1, show_summaries=show_summaries))
+
     return render_template('index.html')
+
 
 @app.route('/search')
 def search():
@@ -138,5 +142,10 @@ def search():
                            filenames_summaries=filenames_summaries_page, show_summaries=show_summaries)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    # Add this at the beginning of your file
+    parser = argparse.ArgumentParser(description='Run the Flask application.')
+    parser.add_argument('--debug', action='store_true', help='Turn on debugging.')
+    args = parser.parse_args()
+
+    app.run(host='0.0.0.0', debug=args.debug, port=5001)
 

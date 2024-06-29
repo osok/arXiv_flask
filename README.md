@@ -2,7 +2,7 @@
 
 ## Setup
 
-you will need to use the tools in arXiv_tools to load the papers into a pinecone index.
+you will need to use the tool ```process_channel.py``` in ```https://github.com/osok/fabric_tools``` to load the create the papers and load them into a pinecone index.
 
 Then you can
 - add the API keys in env_smaple to your environment
